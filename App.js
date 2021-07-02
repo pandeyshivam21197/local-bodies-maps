@@ -6,107 +6,91 @@
  * @flow strict-local
  */
 
-import React from 'react';
-import type {Node} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {StyleSheet, View, ActivityIndicator} from 'react-native';
+import MapView, {PROVIDER_GOOGLE, Polyline} from 'react-native-maps';
+import Geolocation, {
+  AuthorizationLevel,
+} from 'react-native-geolocation-service';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App: () => Node = () => {
+  const [location, setLocation] = useState(null);
 
-const Section = ({children, title}): Node => {
-  const isDarkMode = useColorScheme() === 'dark';
+  useEffect(() => {
+    const fetchLocation = async () => {
+      const hasLocationPermission = await Geolocation.requestAuthorization(
+        'whenInUse',
+      );
+      console.log(hasLocationPermission, 'hasLocationPermission$$$');
+      if (hasLocationPermission === 'granted') {
+        Geolocation.getCurrentPosition(
+          position => {
+            const {
+              coords: {latitude, longitude},
+            } = position;
+
+            setLocation({
+              latitude,
+              longitude,
+              latitudeDelta: 1,
+              longitudeDelta: 1,
+            });
+          },
+          error => {
+            // See error code charts below.
+            console.log(error.code, error.message);
+          },
+          {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+        );
+      }
+    };
+
+    fetchLocation();
+  }, []);
+
+  if (!location) {
+    return <ActivityIndicator />;
+  }
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={styles.container}>
+      <MapView style={styles.map} provider={PROVIDER_GOOGLE} region={location}>
+        <Polyline
+          coordinates={[
+            {latitude: 37.8025259, longitude: -122.4351431},
+            {latitude: 37.7896386, longitude: -122.421646},
+            {latitude: 37.7665248, longitude: -122.4161628},
+            {latitude: 37.7734153, longitude: -122.4577787},
+            {latitude: 37.7948605, longitude: -122.4596065},
+            {latitude: 37.8025259, longitude: -122.4351431},
+          ]}
+          strokeColor="#000" // fallback for when `strokeColors` is not supported by the map-provider
+          strokeColors={[
+            '#7F0000',
+            '#00000000', // no color, creates a "long" gradient between the previous and next coordinate
+            '#B24112',
+            '#E5845C',
+            '#238C23',
+            '#7F0000',
+          ]}
+          strokeWidth={6}
+        />
+      </MapView>
     </View>
   );
 };
 
-const App: () => Node = () => {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.js</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-};
-
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    height: '100%',
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  map: {
+    ...StyleSheet.absoluteFillObject,
   },
 });
 
-export default App;
+export default React.memo(App);
