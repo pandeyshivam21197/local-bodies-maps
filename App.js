@@ -6,24 +6,34 @@
  * @flow strict-local
  */
 
-import React, {useEffect, useState} from 'react';
-import {StyleSheet, View, ActivityIndicator} from 'react-native';
-import MapView, {PROVIDER_GOOGLE, Polyline} from 'react-native-maps';
+import React, {useEffect, useState, useRef} from 'react';
+import {
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  Platform,
+  PermissionsAndroid,
+} from 'react-native';
+import MapView, {PROVIDER_GOOGLE, Polyline, Marker} from 'react-native-maps';
 import Geolocation, {
   AuthorizationLevel,
 } from 'react-native-geolocation-service';
 
 const App: () => Node = () => {
   const [location, setLocation] = useState(null);
+  const _map = useRef(null);
 
   useEffect(() => {
     const fetchLocation = async () => {
-      const hasLocationPermission = await Geolocation.requestAuthorization(
-        'whenInUse',
-      );
-      console.log(hasLocationPermission, 'hasLocationPermission$$$');
+      const hasLocationPermission =
+        Platform.OS === 'ios'
+          ? await Geolocation.requestAuthorization('whenInUse')
+          : await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            );
+
       if (hasLocationPermission === 'granted') {
-        Geolocation.getCurrentPosition(
+        await Geolocation.getCurrentPosition(
           position => {
             const {
               coords: {latitude, longitude},
@@ -48,33 +58,25 @@ const App: () => Node = () => {
     fetchLocation();
   }, []);
 
-  if (!location) {
-    return <ActivityIndicator />;
-  }
+  useEffect(() => {
+    if (location && _map.current) {
+      _map.current.animateCamera(
+        {
+          center: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+          zoom: 15,
+        },
+        {duration: 5000},
+      );
+    }
+  }, [location]);
 
   return (
     <View style={styles.container}>
-      <MapView style={styles.map} provider={PROVIDER_GOOGLE} region={location}>
-        <Polyline
-          coordinates={[
-            {latitude: 37.8025259, longitude: -122.4351431},
-            {latitude: 37.7896386, longitude: -122.421646},
-            {latitude: 37.7665248, longitude: -122.4161628},
-            {latitude: 37.7734153, longitude: -122.4577787},
-            {latitude: 37.7948605, longitude: -122.4596065},
-            {latitude: 37.8025259, longitude: -122.4351431},
-          ]}
-          strokeColor="#000" // fallback for when `strokeColors` is not supported by the map-provider
-          strokeColors={[
-            '#7F0000',
-            '#00000000', // no color, creates a "long" gradient between the previous and next coordinate
-            '#B24112',
-            '#E5845C',
-            '#238C23',
-            '#7F0000',
-          ]}
-          strokeWidth={6}
-        />
+      <MapView style={styles.map} provider={PROVIDER_GOOGLE} ref={_map}>
+        {location && <Marker coordinate={location} />}
       </MapView>
     </View>
   );
@@ -87,6 +89,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'flex-end',
     alignItems: 'center',
+    backgroundColor: 'red',
   },
   map: {
     ...StyleSheet.absoluteFillObject,
